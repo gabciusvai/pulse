@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% set current_user_avatar = '' %}
+{% block title %}Admin Panel{% endblock %}
+{% block head %}
+<style>
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.stat-card { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:20px; text-align:center; }
+.stat-num { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.stat-label { color:var(--muted); font-size:.82rem; margin-top:4px; }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; padding:10px 12px; font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); }
+td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:.9rem; vertical-align:middle; }
+tr:hover td { background:var(--surface2); }
+.role-tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:700; }
+.role-owner { background:linear-gradient(135deg,#ffd700,#ff8c00); color:#000; }
+.role-user { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
+.banned-tag { background:#fc5c7d22; color:#fc5c7d; border:1px solid #fc5c7d; display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:700; }
+.tab-btn { padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; font-size:.9rem; transition:all .2s; }
+.tab-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="topbar">
+  <h2>👑 Owner Panel</h2>
+</div>
+<div style="max-width:1100px;margin:0 auto;padding:24px 16px;">
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.users }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.posts }}</div>
+      <div class="stat-label">Total Posts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.messages }}</div>
+      <div class="stat-label">Messages Sent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="-webkit-text-fill-color:#fc5c7d;">{{ stats.banned }}</div>
+      <div class="stat-label">Banned Users</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:10px;margin-bottom:20px;">
+    <button class="tab-btn active" onclick="showTab('users', this)">👥 Users</button>
+    <button class="tab-btn" onclick="showTab('posts', this)">📝 Posts</button>
+  </div>
+
+  <!-- Users Tab -->
+  <div id="tab-users" class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename= u['avatar']) }}"
+                   onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="">
+              <a href="{{ url_for('profile', username=u['username']) }}" style="font-weight:600;text-decoration:none;color:var(--text);">{{ u['username'] }}</a>
+            </div>
+          </td>
+          <td style="color:var(--muted);">{{ u['email'] }}</td>
+          <td>
+            {% if u['role'] == 'owner' %}
+              <span class="role-tag role-owner">👑 Owner</span>
+            {% else %}
+              <form method="POST" action="{{ url_for('set_role', user_id=u['id']) }}" style="display:inline-flex;gap:6px;align-items:center;">
+                <select name="role" class="input" style="padding:4px 8px;width:auto;font-size:.8rem;">
+                  <option value="user" {% if u['role'] == 'user' %}selected{% endif %}>User</option>
+                  <option value="moderator" {% if u['role'] == 'moderator' %}selected{% endif %}>Moderator</option>
+                </select>
+                <button type="submit" class="btn btn-outline btn-sm">Set</button>
+              </form>
+            {% endif %}
+          </td>
+          <td>
+            {% if u['is_banned'] %}
+              <span class="banned-tag">🚫 Banned</span>
+            {% else %}
+              <span style="color:#22c55e;font-size:.82rem;">● Active</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted);font-size:.82rem;">{{ u['created_at'][:10] }}</td>
+          <td>
+            {% if u['role'] != 'owner' %}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              {% if u['is_banned'] %}
+              <form method="POST" action="{{ url_for('unban_user', user_id=u['id']) }}">
+                <button type="submit" class="btn btn-outline btn-sm" style="border-color:#22c55e;color:#22c55e;">✅ Unban</button>
+              </form>
+              {% else %}
+              <form method="POST" action="{{ url_for('ban_user', user_id=u['id']) }}" onsubmit="return confirm('Ban {{ u['username'] }}?')">
+                <button type="submit" class="btn btn-sm" style="background:#fc5c7d22;border:1px solid #fc5c7d;color:#fc5c7d;">🚫 Ban</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="{{ url_for('delete_user', user_id=u['id']) }}" onsubmit="return confirm('PERMANENTLY delete {{ u['username'] }} and all their data?')">
+                <button type="submit" class="btn btn-sm" style="background:#ff000022;border:1px solid #ff4444;color:#ff4444;">🗑️ Delete</button>
+              </form>
+            </div>
+            {% else %}
+            <span style="color:var(--muted);font-size:.8rem;">Protected</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Posts Tab -->
+  <div id="tab-posts" class="card" style="padding:0;overflow:hidden;display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Author</th>
+          <th>Content</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for post in posts %}
+        <tr>
+          <td>
+            <span class="{% if post['role'] == 'owner' %}role-tag role-owner{% endif %}" style="font-weight:600;">
+              {% if post['role'] == 'owner' %}👑 {% endif %}{{ post['username'] }}
+            </span>
+          </td>
+          <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);">
+            {{ post['content'][:100] }}{% if post['content']|length > 100 %}...{% endif %}
+          </td>
+          <td style="color:var(--muted);font-size:.82rem;">{{ post['created_at'][:16] }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('admin_delete_post', post_id=post['id']) }}" onsubmit="return confirm('Delete this post?')">
+              <button type="submit" class="btn btn-sm" style="background:#ff000022;border:1px solid #ff4444;color:#ff4444;">🗑️ Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+<script>
+function showTab(name, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

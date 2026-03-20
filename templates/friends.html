@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Friends{% endblock %}
+{% block content %}
+<div class="topbar"><h2>👥 Friends</h2></div>
+<div class="page">
+  {% if pending_received %}
+  <div class="card">
+    <h3 style="margin-bottom:16px;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Friend Requests ({{ pending_received|length }})</h3>
+    {% for u in pending_received %}
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <a href="{{ url_for('profile', username=u['username']) }}">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= u['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="{{ u['username'] }}">
+      </a>
+      <div style="flex:1;">
+        <a href="{{ url_for('profile', username=u['username']) }}" style="font-weight:600;text-decoration:none;color:var(--text);">{{ u['username'] }}</a>
+      </div>
+      <form method="POST" action="{{ url_for('friend_accept', user_id=u['id']) }}" style="display:inline;">
+        <button type="submit" class="btn btn-primary btn-sm">Accept</button>
+      </form>
+      <form method="POST" action="{{ url_for('friend_decline', user_id=u['id']) }}" style="display:inline;">
+        <button type="submit" class="btn btn-danger btn-sm">Decline</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if accepted %}
+  <div class="card">
+    <h3 style="margin-bottom:16px;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Your Friends ({{ accepted|length }})</h3>
+    {% for u in accepted %}
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <a href="{{ url_for('profile', username=u['username']) }}">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= u['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="{{ u['username'] }}">
+      </a>
+      <div style="flex:1;">
+        <a href="{{ url_for('profile', username=u['username']) }}" style="font-weight:600;text-decoration:none;color:var(--text);">{{ u['username'] }}</a>
+      </div>
+      <a href="{{ url_for('chat', friend_id=u['id']) }}" class="btn btn-outline btn-sm">💬 Chat</a>
+      <form method="POST" action="{{ url_for('friend_remove', user_id=u['id']) }}" style="display:inline;" onsubmit="return confirm('Remove friend?')">
+        <button type="submit" class="btn btn-ghost btn-sm" style="color:#fc5c7d;">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if pending_sent %}
+  <div class="card">
+    <h3 style="margin-bottom:16px;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Requests Sent</h3>
+    {% for u in pending_sent %}
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= u['avatar']) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="{{ u['username'] }}">
+      <div style="flex:1;"><span style="font-weight:600;">{{ u['username'] }}</span></div>
+      <span style="color:var(--muted);font-size:.85rem;">Pending ⏳</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not accepted and not pending_received and not pending_sent %}
+  <div class="card" style="text-align:center;padding:48px;">
+    <div style="font-size:3rem;margin-bottom:16px;">👋</div>
+    <h3 style="margin-bottom:8px;">No friends yet</h3>
+    <p style="color:var(--muted);margin-bottom:20px;">Search for people to connect with!</p>
+    <a href="{{ url_for('search') }}" class="btn btn-primary">Discover people</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

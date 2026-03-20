@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Chat with {{ friend['username'] }}{% endblock %}
+{% block head %}
+<style>
+.chat-wrapper { display:flex;flex-direction:column;height:calc(100vh - 65px); }
+.chat-header {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-shrink:0;
+}
+.chat-messages {
+  flex:1;
+  overflow-y:auto;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.msg { display:flex;gap:10px;align-items:flex-end;max-width:70%; }
+.msg.mine { flex-direction:row-reverse;align-self:flex-end; }
+.msg-bubble {
+  padding:10px 15px;
+  border-radius:18px;
+  font-size:.93rem;
+  line-height:1.5;
+  max-width:100%;
+  word-break:break-word;
+}
+.msg.theirs .msg-bubble { background:var(--surface2);border-bottom-left-radius:4px; }
+.msg.mine .msg-bubble { background:var(--accent);color:white;border-bottom-right-radius:4px; }
+.msg-time { font-size:.72rem;color:var(--muted);flex-shrink:0; }
+.chat-input-area {
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  padding:16px 20px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-shrink:0;
+}
+.chat-input {
+  flex:1;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:12px 18px;
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:.95rem;
+  outline:none;
+  transition:border-color .2s;
+}
+.chat-input:focus { border-color:var(--accent); }
+.chat-input::placeholder { color:var(--muted); }
+.send-btn {
+  width:44px;height:44px;
+  border-radius:50%;
+  background:var(--accent);
+  border:none;
+  color:white;
+  cursor:pointer;
+  font-size:1.1rem;
+  transition:transform .2s;
+  flex-shrink:0;
+}
+.send-btn:hover { transform:scale(1.1); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="chat-wrapper">
+  <div class="chat-header">
+    <a href="{{ url_for('chat_list') }}" class="btn btn-ghost btn-sm">←</a>
+    <div style="position:relative;">
+      <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= friend['avatar']) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ friend['username'] }}&background=7c5cfc&color=fff'" alt="{{ friend['username'] }}">
+      <div class="online-dot"></div>
+    </div>
+    <div style="flex:1;">
+      <a href="{{ url_for('profile', username=friend['username']) }}" style="font-weight:700;text-decoration:none;color:var(--text);">{{ friend['username'] }}</a>
+      <div style="font-size:.78rem;color:#5cf4fc;">● Online</div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="initiateCall('voice')">🎙️</button>
+    <button class="btn btn-primary btn-sm" onclick="initiateCall('video')">📹 Call</button>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    {% for msg in messages %}
+    <div class="msg {% if msg['sender_id'] == session.user_id %}mine{% else %}theirs{% endif %}">
+      {% if msg['sender_id'] != session.user_id %}
+      <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename= msg['avatar']) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ msg['username'] }}&background=7c5cfc&color=fff'" alt="">
+      {% endif %}
+      <div>
+        <div class="msg-bubble">{{ msg['content'] }}</div>
+        <div class="msg-time" style="{% if msg['sender_id'] == session.user_id %}text-align:right{% endif %}">{{ msg['created_at'][11:16] }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="chat-input-area">
+    <input class="chat-input" id="msgInput" placeholder="Message {{ friend['username'] }}..." autocomplete="off">
+    <button class="send-btn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<script>
+const socket = io();
+const myId = {{ session.user_id }};
+const friendId = {{ friend['id'] }};
+const myAvatar = "{{ url_for('uploaded_file', filename= user['avatar']) }}";
+const myUsername = "{{ session.username }}";
+
+socket.emit('join_chat', { friend_id: friendId });
+
+socket.on('new_message', (data) => {
+  if (data.sender_id !== myId) {
+    appendMessage(data.content, false, data.timestamp, data.avatar, data.username);
+  }
+});
+
+function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const content = input.value.trim();
+  if (!content) return;
+  socket.emit('send_message', { receiver_id: friendId, content: content });
+  appendMessage(content, true, new Date().toTimeString().slice(0,5));
+  input.value = '';
+}
+
+document.getElementById('msgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+function appendMessage(content, isMine, time, avatarUrl, username) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
+  const av = avatarUrl || myAvatar;
+  div.innerHTML = `
+    ${!isMine ? `<img class="avatar avatar-sm" src="${av}" onerror="this.src='https://ui-avatars.com/api/?name=${username||myUsername}&background=7c5cfc&color=fff'" alt="">` : ''}
+    <div>
+      <div class="msg-bubble">${escHtml(content)}</div>
+      <div class="msg-time" style="${isMine ? 'text-align:right' : ''}">${time}</div>
+    </div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Scroll to bottom on load
+window.onload = () => {
+  const c = document.getElementById('chatMessages');
+  c.scrollTop = c.scrollHeight;
+};
+
+function initiateCall(callType) {
+  const room = `call_${Math.random().toString(36).substr(2,9)}`;
+  socket.emit('call_user', { target_id: friendId, call_type: callType, room: room });
+  window.open(`/call/${room}`, '_blank', 'width=900,height=700');
+}
+</script>
+{% endblock %}

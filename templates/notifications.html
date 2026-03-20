@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="topbar"><h2>🔔 Notifications</h2></div>
+<div class="page">
+  {% if notifs %}
+    {% for n in notifs %}
+    <a href="{{ n['link'] or '#' }}" style="text-decoration:none;">
+      <div class="card" style="display:flex;align-items:center;gap:14px;{% if not n['is_read'] %}border-color:var(--accent);{% endif %}">
+        {% if n['avatar'] %}
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=n['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ n['username'] or '?' }}&background=7c5cfc&color=fff'" alt="">
+        {% else %}
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">
+          {% if n['type']=='like' %}❤️{% elif n['type']=='comment' %}💬{% elif n['type']=='friend_request' %}👥{% elif n['type']=='message' %}✉️{% else %}🔔{% endif %}
+        </div>
+        {% endif %}
+        <div style="flex:1;">
+          <div style="font-size:.9rem;{% if not n['is_read'] %}font-weight:600;{% endif %}">{{ n['content'] }}</div>
+          <div style="font-size:.76rem;color:var(--muted);margin-top:3px;">{{ n['created_at'][:16] }}</div>
+        </div>
+        {% if not n['is_read'] %}<div style="width:9px;height:9px;background:var(--accent);border-radius:50%;flex-shrink:0;"></div>{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:3rem;margin-bottom:14px;">🔔</div>
+      <h3 style="margin-bottom:8px;">All caught up!</h3>
+      <p style="color:var(--muted);">No new notifications.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ session.get('theme','dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Pulse{% endblock %} · Social</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+:root{--bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c28;--border:#2a2a3a;--accent:#7c5cfc;--accent2:#fc5c7d;--accent3:#5cf4fc;--text:#f0f0ff;--muted:#7878a0;--radius:16px;--nav-w:240px;--green:#22c55e;}
+[data-theme="light"]{--bg:#f4f4fb;--surface:#ffffff;--surface2:#ededf8;--border:#ddddf0;--text:#0a0a1f;--muted:#6060a0;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;transition:background .3s,color .3s;}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;}
+.sidebar{width:var(--nav-w);background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;padding:20px 14px;z-index:100;overflow-y:auto;transition:background .3s;}
+.logo{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:24px;padding:0 8px;}
+.nav-link{display:flex;align-items:center;gap:11px;padding:10px 14px;border-radius:11px;color:var(--muted);text-decoration:none;font-weight:500;margin-bottom:3px;transition:all .2s;font-size:.9rem;}
+.nav-link:hover,.nav-link.active{background:var(--surface2);color:var(--text);}
+.nav-link svg{width:18px;height:18px;flex-shrink:0;}
+.badge{background:var(--accent2);color:white;font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:auto;}
+.live-dot{font-size:.6rem;background:#fc5c7d;color:white;padding:1px 5px;border-radius:4px;margin-left:4px;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.sidebar-bottom{margin-top:auto;padding-top:12px;}
+.user-pill{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--surface2);text-decoration:none;color:var(--text);border:1px solid transparent;transition:all .2s;}
+.user-pill:hover{border-color:var(--accent);}
+.user-pill img{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);}
+.user-pill-name{font-weight:600;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-pill-sub{font-size:.7rem;color:var(--muted);}
+.main{margin-left:var(--nav-w);flex:1;min-height:100vh;}
+.page{max-width:680px;margin:0 auto;padding:24px 16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px;transition:background .3s,border-color .2s;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:10px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;font-size:.88rem;transition:all .2s;text-decoration:none;}
+.btn-primary{background:var(--accent);color:white;}.btn-primary:hover{opacity:.88;transform:translateY(-1px);}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);}.btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+.btn-danger{background:transparent;border:1px solid var(--accent2);color:var(--accent2);}
+.btn-sm{padding:6px 13px;font-size:.8rem;}
+.btn-ghost{background:transparent;color:var(--muted);}.btn-ghost:hover{color:var(--text);}
+.avatar{border-radius:50%;object-fit:cover;border:2px solid var(--border);}
+.avatar-sm{width:30px;height:30px;}.avatar-md{width:42px;height:42px;}.avatar-lg{width:72px;height:72px;border:3px solid var(--accent);}.avatar-xl{width:110px;height:110px;border:3px solid var(--accent);}
+.input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:.93rem;width:100%;outline:none;transition:border-color .2s;}
+.input:focus{border-color:var(--accent);}.input::placeholder{color:var(--muted);}
+textarea.input{resize:vertical;min-height:78px;}
+.flash{padding:12px 16px;border-radius:10px;margin-bottom:14px;}
+.flash.error{background:#fc5c7d18;border:1px solid #fc5c7d;color:#fc5c7d;}
+.flash.success{background:#22c55e18;border:1px solid #22c55e;color:#22c55e;}
+.post-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.post-meta{flex:1;}
+.post-username{font-weight:600;font-size:.93rem;text-decoration:none;color:var(--text);}
+.post-username:hover{color:var(--accent);}
+.post-time{font-size:.74rem;color:var(--muted);margin-top:2px;}
+.post-content{font-size:.95rem;line-height:1.65;margin-bottom:12px;white-space:pre-wrap;}
+.post-content a{color:var(--accent);text-decoration:none;}.post-content a:hover{text-decoration:underline;}
+.post-image{width:100%;border-radius:12px;max-height:480px;object-fit:cover;margin-bottom:12px;}
+.post-video{width:100%;border-radius:12px;margin-bottom:12px;}
+.post-actions{display:flex;gap:7px;flex-wrap:wrap;}
+.action-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:8px;background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:.81rem;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.action-btn:hover,.action-btn.liked{border-color:var(--accent2);color:var(--accent2);}
+.action-btn svg{width:14px;height:14px;}
+.role-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.65rem;font-weight:700;vertical-align:middle;margin-left:5px;}
+.role-owner{background:linear-gradient(135deg,#ffd700,#ff8c00);color:#000;}
+.role-mod{background:linear-gradient(135deg,#5cf4fc,#7c5cfc);color:#000;}
+.online-dot{width:9px;height:9px;background:var(--green);border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:0;right:0;}
+.topbar{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:13px 20px;z-index:50;display:flex;align-items:center;gap:12px;transition:background .3s;}
+.topbar h2{font-size:1.05rem;font-weight:700;}
+.call-modal{display:none;position:fixed;inset:0;background:#000c;z-index:999;align-items:center;justify-content:center;}
+.call-modal.show{display:flex;}
+.call-box{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:40px;text-align:center;min-width:300px;}
+.call-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;font-size:1.3rem;transition:transform .2s;}
+.call-btn:hover{transform:scale(1.1);}
+.hashtag-link{color:var(--accent);text-decoration:none;font-weight:500;}
+.hashtag-link:hover{text-decoration:underline;}
+@media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if session.user_id %}
+<nav class="sidebar">
+  <div class="logo">⚡ Pulse</div>
+  <a href="{{ url_for('feed') }}" class="nav-link {% if request.endpoint=='feed' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Feed
+  </a>
+  <a href="{{ url_for('reels') }}" class="nav-link {% if request.endpoint=='reels' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Reels
+  </a>
+  <a href="{{ url_for('live_list') }}" class="nav-link {% if request.endpoint in ['live_list','live_room'] %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>Live<span class="live-dot">LIVE</span>
+  </a>
+  <a href="{{ url_for('groups') }}" class="nav-link {% if request.endpoint in ['groups','view_group'] %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Groups
+  </a>
+  <a href="{{ url_for('search') }}" class="nav-link {% if request.endpoint=='search' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
+  </a>
+  <a href="{{ url_for('friends') }}" class="nav-link {% if request.endpoint=='friends' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Friends
+    {% if requests_count is defined and requests_count > 0 %}<span class="badge">{{ requests_count }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('chat_list') }}" class="nav-link {% if request.endpoint in ['chat_list','chat'] %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Messages
+  </a>
+  <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint=='notifications' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts
+    {% if notif_count is defined and notif_count > 0 %}<span class="badge" id="notifBadge">{{ notif_count }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('profile', username=session.username) }}" class="nav-link {% if request.endpoint=='profile' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+  </a>
+  {% if session.username == 'gabcius' %}
+  <a href="{{ url_for('admin') }}" class="nav-link {% if request.endpoint=='admin' %}active{% endif %}" style="margin-top:6px;background:linear-gradient(135deg,#ffd70012,#ff8c0012);border:1px solid #ffd70035;color:#ffd700;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Admin Panel
+  </a>
+  {% endif %}
+  <div class="sidebar-bottom">
+    <button onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;width:100%;margin-bottom:10px;transition:all .2s;" id="themeBtn">
+      🌙 Dark Mode
+    </button>
+    <a href="{{ url_for('profile', username=session.username) }}" class="user-pill">
+      <img src="{{ url_for('uploaded_file', filename=current_user_avatar|default('default.png')) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ session.username }}&background=7c5cfc&color=fff'" alt="me">
+      <div style="flex:1;min-width:0;">
+        <div class="user-pill-name">{{ session.username }}</div>
+        <div class="user-pill-sub">{% if session.username == 'gabcius' %}👑 Owner{% else %}View profile{% endif %}</div>
+      </div>
+    </a>
+    <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;justify-content:center;">Sign out</a>
+  </div>
+</nav>
+{% endif %}
+
+<div class="call-modal" id="callModal">
+  <div class="call-box">
+    <div style="font-size:3rem;margin-bottom:16px;" id="callEmoji">📞</div>
+    <h3 id="callerName" style="font-size:1.4rem;margin-bottom:6px;">Someone</h3>
+    <p id="callTypeText" style="color:var(--muted);margin-bottom:28px;">is calling you...</p>
+    <div style="display:flex;gap:16px;justify-content:center;">
+      <button class="call-btn" style="background:#22c55e;" onclick="acceptCall()">✅</button>
+      <button class="call-btn" style="background:#fc5c7d;" onclick="declineCall()">❌</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  {% for cat,msg in get_flashed_messages(with_categories=True) %}
+  <div class="flash {{ cat }}" style="margin:14px 14px 0;">{{ msg }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</div>
+
+{% if session.user_id %}
+<script>
+const socket = io();
+let incomingCallData = null;
+const currentTheme = document.documentElement.getAttribute('data-theme');
+document.getElementById('themeBtn').textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+
+socket.on('connect', () => socket.emit('register_user', {}));
+socket.on('incoming_call', data => {
+  incomingCallData = data;
+  document.getElementById('callerName').textContent = data.caller_name;
+  document.getElementById('callTypeText').textContent = (data.call_type==='video'?'📹 Video':'🎙️ Voice') + ' calling you...';
+  document.getElementById('callEmoji').textContent = data.call_type==='video'?'📹':'🎙️';
+  document.getElementById('callModal').classList.add('show');
+});
+socket.on('notification', data => {
+  let badge = document.getElementById('notifBadge');
+  if(!badge){
+    // create badge if not exists
+    const link = document.querySelector('a[href*="notifications"]');
+    if(link){ badge = document.createElement('span'); badge.className='badge'; badge.id='notifBadge'; badge.textContent='1'; link.appendChild(badge); }
+  } else {
+    badge.textContent = parseInt(badge.textContent||0)+1;
+  }
+  // toast
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px 18px;z-index:9999;font-size:.88rem;max-width:300px;box-shadow:0 8px 32px #0008;animation:slideIn .3s ease';
+  toast.innerHTML = `<b>🔔 New alert</b><br>${data.content}`;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(), 4000);
+});
+function acceptCall(){
+  if(!incomingCallData)return;
+  socket.emit('call_response',{accepted:true,room:incomingCallData.room,target_id:incomingCallData.caller_id});
+  window.open(`/call/${incomingCallData.room}`,'_blank','width=900,height=700');
+  document.getElementById('callModal').classList.remove('show');
+}
+function declineCall(){
+  if(!incomingCallData)return;
+  socket.emit('call_response',{accepted:false,room:incomingCallData.room,target_id:incomingCallData.caller_id});
+  document.getElementById('callModal').classList.remove('show');
+}
+function toggleTheme(){
+  fetch('/theme/toggle',{method:'POST'}).then(r=>r.json()).then(d=>{
+    document.documentElement.setAttribute('data-theme',d.theme);
+    document.getElementById('themeBtn').textContent = d.theme==='dark'?'☀️ Light Mode':'🌙 Dark Mode';
+  });
+}
+</script>
+{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

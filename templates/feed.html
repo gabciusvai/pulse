@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Feed{% endblock %}
+{% block content %}
+<div class="topbar">
+  <h2>⚡ Feed</h2>
+  <form action="{{ url_for('search') }}" method="GET" style="margin-left:auto;display:flex;gap:8px;">
+    <input class="input" name="q" placeholder="Search people..." style="width:190px;padding:7px 12px;">
+    <button class="btn btn-primary btn-sm" type="submit">Go</button>
+  </form>
+</div>
+<div style="display:flex;gap:20px;max-width:1100px;margin:0 auto;padding:20px 16px;">
+
+  <!-- Main feed -->
+  <div style="flex:1;min-width:0;">
+
+    <!-- Stories bar -->
+    {% if stories %}
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:4px;">
+        <!-- Add story -->
+        <div style="flex-shrink:0;text-align:center;">
+          <label for="storyUpload" style="cursor:pointer;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--surface2);border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 6px;">+</div>
+            <div style="font-size:.72rem;color:var(--muted);">Your Story</div>
+          </label>
+          <form id="storyForm" method="POST" action="{{ url_for('create_story') }}" enctype="multipart/form-data" style="display:none;">
+            <input type="file" id="storyUpload" name="media" accept="image/*,video/*" onchange="document.getElementById('storyForm').submit()">
+          </form>
+        </div>
+        {% for story in stories %}
+        <div style="flex-shrink:0;text-align:center;cursor:pointer;" onclick="viewStory({{ story['id'] }},'{{ url_for('uploaded_file', filename=story['media']) }}','{{ story['media_type'] }}','{{ story['username'] }}','{{ story['caption'] }}')">
+          <div style="width:64px;height:64px;border-radius:50%;border:3px solid {% if story['viewed'] %}var(--border){% else %}var(--accent){% endif %};overflow:hidden;margin:0 auto 6px;">
+            <img src="{{ url_for('uploaded_file', filename=story['avatar']) }}" style="width:100%;height:100%;object-fit:cover;"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ story['username'] }}&background=7c5cfc&color=fff'">
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ story['username'] }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card" style="padding:14px 16px;">
+      <div style="display:flex;gap:12px;align-items:center;">
+        <label for="storyUpload" style="cursor:pointer;flex-shrink:0;">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">+</div>
+        </label>
+        <div style="color:var(--muted);font-size:.88rem;">Add your first story — it disappears in 24h ✨</div>
+        <form id="storyForm" method="POST" action="{{ url_for('create_story') }}" enctype="multipart/form-data" style="display:none;">
+          <input type="file" id="storyUpload" name="media" accept="image/*,video/*" onchange="document.getElementById('storyForm').submit()">
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Live streams banner -->
+    {% if livestreams %}
+    <div class="card" style="padding:14px 16px;background:linear-gradient(135deg,#fc5c7d18,#7c5cfc18);border-color:#fc5c7d44;">
+      <div style="font-size:.8rem;color:var(--accent2);font-weight:700;margin-bottom:10px;">🔴 LIVE NOW</div>
+      <div style="display:flex;gap:12px;overflow-x:auto;">
+        {% for stream in livestreams %}
+        <a href="{{ url_for('live_room', room=stream['room']) }}" style="text-decoration:none;flex-shrink:0;">
+          <div style="width:120px;background:var(--surface2);border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+            <div style="height:70px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:1.8rem;">📺</div>
+            <div style="padding:6px 8px;">
+              <div style="font-size:.78rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ stream['title'] }}</div>
+              <div style="font-size:.7rem;color:var(--muted);">@{{ stream['username'] }}</div>
+            </div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Create post -->
+    <div class="card">
+      <form method="POST" action="{{ url_for('create_post') }}" enctype="multipart/form-data">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=user['avatar']) }}"
+               onerror="this.src='https://ui-avatars.com/api/?name={{ user['username'] }}&background=7c5cfc&color=fff'" alt="me">
+          <div style="flex:1;">
+            <textarea class="input" name="content" placeholder="What's on your mind? Use #hashtags to trend..." rows="3"></textarea>
+            <div id="imagePreview" style="display:none;margin-top:10px;"><img id="previewImg" style="max-height:180px;border-radius:10px;max-width:100%;"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+              <label for="post_image" class="btn btn-outline btn-sm" style="cursor:pointer;">🖼️ Photo</label>
+              <input type="file" id="post_image" name="image" accept="image/*" style="display:none;" onchange="previewImage(this)">
+              <label for="post_video" class="btn btn-outline btn-sm" style="cursor:pointer;">🎥 Video</label>
+              <input type="file" id="post_video" name="video" accept="video/*" style="display:none;">
+              <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto;">Post ✨</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Posts -->
+    {% for post in posts %}
+    <div class="card">
+      <div class="post-header">
+        <a href="{{ url_for('profile', username=post['username']) }}">
+          <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=post['avatar']) }}"
+               onerror="this.src='https://ui-avatars.com/api/?name={{ post['username'] }}&background=7c5cfc&color=fff'" alt="">
+        </a>
+        <div class="post-meta">
+          <a href="{{ url_for('profile', username=post['username']) }}" class="post-username">{{ post['username'] }}</a>
+          {% if post['role'] == 'owner' %}<span class="role-tag role-owner">👑 OWNER</span>
+          {% elif post['role'] == 'moderator' %}<span class="role-tag role-mod">🛡️ MOD</span>{% endif %}
+          <div class="post-time">{{ post['created_at'][:16] }}</div>
+        </div>
+        {% if post['user_id'] == session.user_id or owner %}
+        <form method="POST" action="{{ url_for('delete_post', post_id=post['id']) }}" onsubmit="return confirm('Delete?')">
+          <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--accent2);">✕</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if post['content'] %}
+      <p class="post-content">{{ post['content'] | replace('#', '<a class="hashtag-link" href="/hashtag/') | replace(' ', '">') | safe }}</p>
+      {% endif %}
+      {% if post['image'] %}<img class="post-image" src="{{ url_for('uploaded_file', filename=post['image']) }}" alt="">{% endif %}
+      {% if post['video'] %}<video class="post-video" controls><source src="{{ url_for('uploaded_file', filename=post['video']) }}"></video>{% endif %}
+      <div class="post-actions">
+        <button class="action-btn {% if post['user_liked'] %}liked{% endif %}" onclick="likePost({{ post['id'] }}, this)">
+          <svg viewBox="0 0 24 24" fill="{% if post['user_liked'] %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          <span class="like-count">{{ post['like_count'] }}</span>
+        </button>
+        <a href="{{ url_for('view_post', post_id=post['id']) }}" class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          {{ post['comment_count'] }}
+        </a>
+        <button class="action-btn" onclick="sharePost({{ post['id'] }})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+      </div>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:3rem;margin-bottom:14px;">✨</div>
+      <h3 style="margin-bottom:8px;">Your feed is empty</h3>
+      <p style="color:var(--muted);margin-bottom:18px;">Add friends to see their posts!</p>
+      <a href="{{ url_for('search') }}" class="btn btn-primary">Discover people</a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Right sidebar -->
+  <div style="width:250px;flex-shrink:0;">
+    <!-- Trending hashtags -->
+    {% if trending %}
+    <div class="card">
+      <h4 style="margin-bottom:14px;font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">🔥 Trending</h4>
+      {% for tag in trending %}
+      <a href="{{ url_for('hashtag', tag=tag['tag']) }}" style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;text-decoration:none;border-bottom:1px solid var(--border);">
+        <span style="color:var(--accent);font-weight:600;font-size:.88rem;">#{{ tag['tag'] }}</span>
+        <span style="font-size:.74rem;color:var(--muted);">{{ tag['count'] }} posts</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <!-- Suggested -->
+    {% if suggested %}
+    <div class="card">
+      <h4 style="margin-bottom:14px;font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">People You May Know</h4>
+      {% for u in suggested %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <a href="{{ url_for('profile', username=u['username']) }}">
+          <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename=u['avatar']) }}"
+               onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="">
+        </a>
+        <a href="{{ url_for('profile', username=u['username']) }}" style="flex:1;font-weight:600;font-size:.85rem;text-decoration:none;color:var(--text);">{{ u['username'] }}</a>
+        <form method="POST" action="{{ url_for('friend_request', user_id=u['id']) }}">
+          <button type="submit" class="btn btn-primary btn-sm">+</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Story viewer modal -->
+<div id="storyModal" style="display:none;position:fixed;inset:0;background:#000d;z-index:998;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="position:relative;max-width:400px;width:100%;background:var(--surface);border-radius:20px;overflow:hidden;">
+    <div id="storyUsername" style="position:absolute;top:14px;left:14px;z-index:2;font-weight:700;color:white;text-shadow:0 1px 4px #000a;"></div>
+    <button onclick="closeStory()" style="position:absolute;top:14px;right:14px;z-index:2;background:#0008;border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;">✕</button>
+    <div id="storyProgress" style="position:absolute;top:0;left:0;height:3px;background:var(--accent);transition:width 5s linear;width:0%;z-index:2;"></div>
+    <img id="storyImg" style="width:100%;max-height:600px;object-fit:cover;display:none;">
+    <video id="storyVid" style="width:100%;max-height:600px;display:none;" autoplay></video>
+    <div id="storyCaption" style="padding:14px;font-size:.9rem;"></div>
+  </div>
+</div>
+
+<script>
+function previewImage(input){
+  if(input.files&&input.files[0]){
+    const r=new FileReader();
+    r.onload=e=>{document.getElementById('previewImg').src=e.target.result;document.getElementById('imagePreview').style.display='block';};
+    r.readAsDataURL(input.files[0]);
+  }
+}
+async function likePost(postId,btn){
+  const res=await fetch(`/post/${postId}/like`,{method:'POST'});
+  const d=await res.json();
+  btn.classList.toggle('liked',d.liked);
+  btn.querySelector('.like-count').textContent=d.count;
+  btn.querySelector('path').setAttribute('fill',d.liked?'currentColor':'none');
+}
+function sharePost(postId){
+  navigator.clipboard.writeText(window.location.origin+'/post/'+postId).then(()=>{
+    const b=event.target.closest('.action-btn');
+    const orig=b.innerHTML; b.innerHTML='✅ Copied!'; setTimeout(()=>b.innerHTML=orig,2000);
+  });
+}
+let storyTimer=null;
+function viewStory(id,url,type,username,caption){
+  fetch('/story/'+id+'/view',{method:'POST'});
+  document.getElementById('storyModal').style.display='flex';
+  document.getElementById('storyUsername').textContent='@'+username;
+  document.getElementById('storyCaption').textContent=caption;
+  const img=document.getElementById('storyImg'), vid=document.getElementById('storyVid');
+  if(type==='video'){img.style.display='none';vid.style.display='block';vid.src=url;}
+  else{vid.style.display='none';img.style.display='block';img.src=url;}
+  const prog=document.getElementById('storyProgress');
+  prog.style.width='0%'; setTimeout(()=>prog.style.width='100%',50);
+  if(storyTimer)clearTimeout(storyTimer);
+  storyTimer=setTimeout(closeStory,5000);
+}
+function closeStory(){
+  document.getElementById('storyModal').style.display='none';
+  document.getElementById('storyVid').src='';
+  if(storyTimer)clearTimeout(storyTimer);
+}
+document.getElementById('storyModal').addEventListener('click',e=>{if(e.target===document.getElementById('storyModal'))closeStory();});
+</script>
+{% endblock %}

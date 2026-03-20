@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Post{% endblock %}
+{% block content %}
+<div class="page">
+  <a href="javascript:history.back()" class="btn btn-outline btn-sm" style="margin-bottom:16px;">← Back</a>
+  <div class="card">
+    <div class="post-header">
+      <a href="{{ url_for('profile', username=post['username']) }}">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= post['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ post['username'] }}&background=7c5cfc&color=fff'" alt="{{ post['username'] }}">
+      </a>
+      <div class="post-meta">
+        <a href="{{ url_for('profile', username=post['username']) }}" class="post-username">{{ post['username'] }}</a>
+        <div class="post-time">{{ post['created_at'][:16] }}</div>
+      </div>
+    </div>
+    {% if post['content'] %}<p class="post-content" style="font-size:1.05rem;">{{ post['content'] }}</p>{% endif %}
+    {% if post['image'] %}<img class="post-image" src="{{ url_for('uploaded_file', filename= post['image']) }}" alt="">{% endif %}
+    <div class="post-actions">
+      <button class="action-btn {% if post['user_liked'] %}liked{% endif %}" onclick="likePost({{ post['id'] }}, this)">
+        <svg viewBox="0 0 24 24" fill="{% if post['user_liked'] %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span class="like-count">{{ post['like_count'] }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Comments -->
+  <div class="card">
+    <h3 style="margin-bottom:16px;">Comments ({{ comments|length }})</h3>
+    {% for c in comments %}
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename= c['avatar']) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ c['username'] }}&background=7c5cfc&color=fff'" alt="">
+      <div style="background:var(--surface2);border-radius:12px;padding:10px 14px;flex:1;">
+        <span style="font-weight:600;font-size:.88rem;">{{ c['username'] }}</span>
+        <span style="font-size:.75rem;color:var(--muted);margin-left:8px;">{{ c['created_at'][11:16] }}</span>
+        <p style="margin-top:4px;line-height:1.5;">{{ c['content'] }}</p>
+      </div>
+    </div>
+    {% endfor %}
+    <form method="POST" action="{{ url_for('comment_post', post_id=post['id']) }}" style="display:flex;gap:10px;margin-top:16px;">
+      <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename= user['avatar']) }}"
+           onerror="this.src='https://ui-avatars.com/api/?name={{ user['username'] }}&background=7c5cfc&color=fff'" alt="">
+      <input class="input" name="content" placeholder="Write a comment..." required>
+      <button type="submit" class="btn btn-primary btn-sm">Post</button>
+    </form>
+  </div>
+</div>
+<script>
+async function likePost(postId, btn) {
+  const res = await fetch(`/post/${postId}/like`, { method: 'POST' });
+  const data = await res.json();
+  btn.classList.toggle('liked', data.liked);
+  btn.querySelector('.like-count').textContent = data.count;
+  btn.querySelector('path').setAttribute('fill', data.liked ? 'currentColor' : 'none');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}#{{ tag }}{% endblock %}
+{% block content %}
+<div class="topbar">
+  <a href="{{ url_for('feed') }}" class="btn btn-ghost btn-sm">←</a>
+  <h2>#{{ tag }}</h2>
+  <span style="color:var(--muted);font-size:.85rem;margin-left:8px;">{{ count }} posts</span>
+</div>
+<div class="page">
+  {% for post in posts %}
+  <div class="card">
+    <div class="post-header">
+      <a href="{{ url_for('profile', username=post['username']) }}">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=post['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ post['username'] }}&background=7c5cfc&color=fff'" alt="">
+      </a>
+      <div class="post-meta">
+        <a href="{{ url_for('profile', username=post['username']) }}" class="post-username">{{ post['username'] }}</a>
+        {% if post['role']=='owner' %}<span class="role-tag role-owner">👑 OWNER</span>{% endif %}
+        <div class="post-time">{{ post['created_at'][:16] }}</div>
+      </div>
+    </div>
+    {% if post['content'] %}<p class="post-content">{{ post['content'] }}</p>{% endif %}
+    {% if post['image'] %}<img class="post-image" src="{{ url_for('uploaded_file', filename=post['image']) }}" alt="">{% endif %}
+    <div class="post-actions">
+      <button class="action-btn {% if post['user_liked'] %}liked{% endif %}" onclick="likePost({{ post['id'] }}, this)">
+        <svg viewBox="0 0 24 24" fill="{% if post['user_liked'] %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span class="like-count">{{ post['like_count'] }}</span>
+      </button>
+      <a href="{{ url_for('view_post', post_id=post['id']) }}" class="action-btn">💬 {{ post['comment_count'] }}</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:48px;color:var(--muted);">No posts with #{{ tag }} yet.</div>
+  {% endfor %}
+</div>
+<script>
+async function likePost(id,btn){
+  const d=await(await fetch(`/post/${id}/like`,{method:'POST'})).json();
+  btn.classList.toggle('liked',d.liked);btn.querySelector('.like-count').textContent=d.count;
+  btn.querySelector('path').setAttribute('fill',d.liked?'currentColor':'none');
+}
+</script>
+{% endblock %}

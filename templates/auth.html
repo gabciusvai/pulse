@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if mode == 'login' %}Sign In{% else %}Join{% endif %} · Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c28;
+  --border: #2a2a3a;
+  --accent: #7c5cfc;
+  --accent2: #fc5c7d;
+  --text: #f0f0ff;
+  --muted: #7878a0;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: pulse 8s ease-in-out infinite;
+}
+.orb1 { width:500px;height:500px;background:var(--accent);top:-100px;left:-100px; animation-delay:0s; }
+.orb2 { width:400px;height:400px;background:var(--accent2);bottom:-100px;right:-100px; animation-delay:4s; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+
+.container {
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  position: relative;
+  z-index: 10;
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.tagline { text-align: center; color: var(--muted); margin-bottom: 40px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+}
+.card h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.4rem;
+  margin-bottom: 24px;
+}
+.field { margin-bottom: 16px; }
+label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:6px; font-weight:500; }
+.input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 12px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .95rem;
+  width: 100%;
+  outline: none;
+  transition: border-color .2s;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--muted); }
+.btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  margin-top: 8px;
+  transition: opacity .2s, transform .2s;
+}
+.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.switch {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.switch a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.switch a:hover { text-decoration: underline; }
+.flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size:.9rem; }
+.flash.error { background: #fc5c7d22; border: 1px solid #fc5c7d; color: #fc5c7d; }
+</style>
+</head>
+<body>
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+</div>
+<div class="container">
+  <div class="logo">⚡ Pulse</div>
+  <p class="tagline">Connect, share, and vibe.</p>
+  <div class="card">
+    <h2>{% if mode == 'login' %}Welcome back 👋{% else %}Create account ✨{% endif %}</h2>
+    {% for cat, msg in get_flashed_messages(with_categories=True) %}
+    <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    <form method="POST">
+      <div class="field">
+        <label>Username</label>
+        <input class="input" type="text" name="username" placeholder="yourname" required autocomplete="username">
+      </div>
+      {% if mode == 'register' %}
+      <div class="field">
+        <label>Email</label>
+        <input class="input" type="email" name="email" placeholder="you@example.com" required>
+      </div>
+      {% endif %}
+      <div class="field">
+        <label>Password</label>
+        <input class="input" type="password" name="password" placeholder="••••••••" required autocomplete="{% if mode=='login' %}current{% else %}new{% endif %}-password">
+      </div>
+      <button type="submit" class="btn">
+        {% if mode == 'login' %}Sign In{% else %}Create Account{% endif %}
+      </button>
+    </form>
+    <div class="switch">
+      {% if mode == 'login' %}
+      Don't have an account? <a href="{{ url_for('register') }}">Sign up</a>
+      {% else %}
+      Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

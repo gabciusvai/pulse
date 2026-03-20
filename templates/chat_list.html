@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<div class="topbar"><h2>💬 Messages</h2></div>
+<div class="page">
+  {% if friends %}
+    {% for friend in friends %}
+    <a href="{{ url_for('chat', friend_id=friend['id']) }}" style="text-decoration:none;">
+      <div class="card" style="display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="position:relative;">
+          <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= friend['avatar']) }}"
+               onerror="this.src='https://ui-avatars.com/api/?name={{ friend['username'] }}&background=7c5cfc&color=fff'" alt="{{ friend['username'] }}">
+          <div class="online-dot"></div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;margin-bottom:4px;">{{ friend['username'] }}</div>
+          <div style="color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ friend['last_msg'] or 'Say hello! 👋' }}
+          </div>
+        </div>
+        {% if friend['unread'] > 0 %}
+        <span class="badge">{{ friend['unread'] }}</span>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:3rem;margin-bottom:16px;">💬</div>
+      <h3 style="margin-bottom:8px;">No conversations yet</h3>
+      <p style="color:var(--muted);margin-bottom:20px;">Add friends to start chatting!</p>
+      <a href="{{ url_for('search') }}" class="btn btn-primary">Find friends</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

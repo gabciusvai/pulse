@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% set current_user_avatar = current['avatar'] %}
+{% block title %}{{ profile_user['username'] }}{% endblock %}
+{% block content %}
+<div class="page" style="max-width:760px;">
+  <!-- Profile header -->
+  <div class="card" style="padding:32px;">
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="position:relative;">
+        <img class="avatar avatar-xl" src="{{ url_for('uploaded_file', filename= profile_user['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ profile_user['username'] }}&background=7c5cfc&color=fff'" alt="{{ profile_user['username'] }}">
+      </div>
+      <div style="flex:1;">
+        <h2 style="font-size:1.6rem;margin-bottom:4px;">
+          {{ profile_user['username'] }}
+          {% if profile_user['role'] == 'owner' %}
+          <span style="display:inline-block;background:linear-gradient(135deg,#ffd700,#ff8c00);color:#000;font-size:.7rem;font-weight:800;padding:3px 10px;border-radius:20px;vertical-align:middle;margin-left:6px;letter-spacing:.05em;">👑 OWNER</span>
+          {% elif profile_user['role'] == 'moderator' %}
+          <span style="display:inline-block;background:linear-gradient(135deg,#5cf4fc,#7c5cfc);color:#000;font-size:.7rem;font-weight:800;padding:3px 10px;border-radius:20px;vertical-align:middle;margin-left:6px;">🛡️ MOD</span>
+          {% endif %}
+        </h2>
+        <p style="color:var(--muted);margin-bottom:12px;">{{ profile_user['email'] }}</p>
+        {% if profile_user['bio'] %}<p style="margin-bottom:16px;line-height:1.6;">{{ profile_user['bio'] }}</p>{% endif %}
+        <div style="display:flex;gap:24px;margin-bottom:20px;">
+          <div style="text-align:center;">
+            <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;">{{ posts|length }}</div>
+            <div style="font-size:.8rem;color:var(--muted);">Posts</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;">{{ friends_count }}</div>
+            <div style="font-size:.8rem;color:var(--muted);">Friends</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          {% if profile_user['id'] == session.user_id %}
+            <a href="{{ url_for('edit_profile') }}" class="btn btn-outline btn-sm">✏️ Edit Profile</a>
+          {% elif friend_status == 'friends' %}
+            <a href="{{ url_for('chat', friend_id=profile_user['id']) }}" class="btn btn-primary btn-sm">💬 Message</a>
+            <button class="btn btn-outline btn-sm" onclick="initiateCall({{ profile_user['id'] }}, 'video')">📹 Video Call</button>
+            <button class="btn btn-outline btn-sm" onclick="initiateCall({{ profile_user['id'] }}, 'voice')">🎙️ Voice Call</button>
+            <form method="POST" action="{{ url_for('friend_remove', user_id=profile_user['id']) }}" style="display:inline;">
+              <button type="submit" class="btn btn-danger btn-sm">Remove Friend</button>
+            </form>
+          {% elif friend_status == 'pending_sent' %}
+            <button class="btn btn-outline btn-sm" disabled>Request Sent ⏳</button>
+          {% elif friend_status == 'pending_received' %}
+            <form method="POST" action="{{ url_for('friend_accept', user_id=profile_user['id']) }}" style="display:inline;">
+              <button type="submit" class="btn btn-primary btn-sm">Accept Friend Request ✅</button>
+            </form>
+            <form method="POST" action="{{ url_for('friend_decline', user_id=profile_user['id']) }}" style="display:inline;">
+              <button type="submit" class="btn btn-danger btn-sm">Decline</button>
+            </form>
+          {% else %}
+            <form method="POST" action="{{ url_for('friend_request', user_id=profile_user['id']) }}" style="display:inline;">
+              <button type="submit" class="btn btn-primary btn-sm">➕ Add Friend</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Posts -->
+  <h3 style="margin-bottom:16px;font-size:1rem;color:var(--muted);">POSTS</h3>
+  {% if posts %}
+    {% for post in posts %}
+    <div class="card">
+      <div class="post-header">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= post['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ post['username'] }}&background=7c5cfc&color=fff'" alt="">
+        <div class="post-meta">
+          <span class="post-username">{{ post['username'] }}</span>
+          <div class="post-time">{{ post['created_at'][:16] }}</div>
+        </div>
+        {% if post['user_id'] == session.user_id %}
+        <form method="POST" action="{{ url_for('delete_post', post_id=post['id']) }}" onsubmit="return confirm('Delete?')">
+          <button type="submit" class="btn btn-ghost btn-sm" style="color:#fc5c7d;">✕</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if post['content'] %}<p class="post-content">{{ post['content'] }}</p>{% endif %}
+      {% if post['image'] %}<img class="post-image" src="{{ url_for('uploaded_file', filename= post['image']) }}" alt="">{% endif %}
+      <div class="post-actions">
+        <button class="action-btn {% if post['user_liked'] %}liked{% endif %}" onclick="likePost({{ post['id'] }}, this)">
+          <svg viewBox="0 0 24 24" fill="{% if post['user_liked'] %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          <span class="like-count">{{ post['like_count'] }}</span>
+        </button>
+        <a href="{{ url_for('view_post', post_id=post['id']) }}" class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          {{ post['comment_count'] }}
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="text-align:center;padding:40px;color:var(--muted);">No posts yet.</div>
+  {% endif %}
+</div>
+
+<script>
+async function likePost(postId, btn) {
+  const res = await fetch(`/post/${postId}/like`, { method: 'POST' });
+  const data = await res.json();
+  btn.classList.toggle('liked', data.liked);
+  btn.querySelector('.like-count').textContent = data.count;
+  btn.querySelector('path').setAttribute('fill', data.liked ? 'currentColor' : 'none');
+}
+
+function initiateCall(targetId, callType) {
+  const room = `call_${Math.random().toString(36).substr(2,9)}`;
+  socket.emit('call_user', { target_id: targetId, call_type: callType, room: room });
+  window.open(`/call/${room}`, '_blank', 'width=900,height=700');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<div class="topbar"><h2>👥 Groups</h2></div>
+<div class="page">
+  <!-- Create group -->
+  <div class="card">
+    <h3 style="margin-bottom:14px;">Create a Community</h3>
+    <form method="POST" action="{{ url_for('create_group') }}">
+      <input class="input" name="name" placeholder="Group name..." required style="margin-bottom:10px;">
+      <textarea class="input" name="description" placeholder="What's this group about?" rows="2" style="margin-bottom:12px;"></textarea>
+      <button type="submit" class="btn btn-primary">Create Group ✨</button>
+    </form>
+  </div>
+
+  <!-- My groups -->
+  {% if my_groups %}
+  <h3 style="margin-bottom:12px;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Your Groups</h3>
+  {% for g in my_groups %}
+  <a href="{{ url_for('view_group', group_id=g['id']) }}" style="text-decoration:none;">
+    <div class="card" style="display:flex;align-items:center;gap:14px;">
+      <div style="width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">👥</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;">{{ g['name'] }}</div>
+        <div style="font-size:.82rem;color:var(--muted);">{{ g['member_count'] }} members</div>
+      </div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--muted);"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </a>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Discover groups -->
+  {% if all_groups %}
+  <h3 style="margin:16px 0 12px;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Discover Communities</h3>
+  {% for g in all_groups %}
+  <div class="card" style="display:flex;align-items:center;gap:14px;">
+    <div style="width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">🌍</div>
+    <div style="flex:1;">
+      <a href="{{ url_for('view_group', group_id=g['id']) }}" style="font-weight:700;text-decoration:none;color:var(--text);">{{ g['name'] }}</a>
+      {% if g['description'] %}<div style="font-size:.82rem;color:var(--muted);">{{ g['description'][:60] }}</div>{% endif %}
+      <div style="font-size:.78rem;color:var(--muted);">{{ g['member_count'] }} members</div>
+    </div>
+    {% if not g['is_member'] %}
+    <form method="POST" action="{{ url_for('join_group', group_id=g['id']) }}">
+      <button type="submit" class="btn btn-primary btn-sm">Join</button>
+    </form>
+    {% else %}
+    <a href="{{ url_for('view_group', group_id=g['id']) }}" class="btn btn-outline btn-sm">View</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

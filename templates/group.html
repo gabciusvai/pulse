@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}{{ group['name'] }}{% endblock %}
+{% block content %}
+<div class="topbar">
+  <a href="{{ url_for('groups') }}" class="btn btn-ghost btn-sm">←</a>
+  <h2>{{ group['name'] }}</h2>
+  {% if not is_member %}
+  <form method="POST" action="{{ url_for('join_group', group_id=group['id']) }}" style="margin-left:auto;">
+    <button type="submit" class="btn btn-primary btn-sm">Join Group</button>
+  </form>
+  {% endif %}
+</div>
+<div style="display:flex;gap:20px;max-width:1000px;margin:0 auto;padding:20px 16px;">
+  <div style="flex:1;min-width:0;">
+    <!-- Group header -->
+    <div class="card" style="background:linear-gradient(135deg,var(--accent)18,var(--accent2)18);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2rem;">👥</div>
+        <div>
+          <h2 style="margin-bottom:4px;">{{ group['name'] }}</h2>
+          {% if group['description'] %}<p style="color:var(--muted);font-size:.88rem;">{{ group['description'] }}</p>{% endif %}
+          <div style="font-size:.78rem;color:var(--muted);margin-top:4px;">{{ members|length }} members · Created {{ group['created_at'][:10] }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if is_member %}
+    <!-- Post in group -->
+    <div class="card">
+      <form method="POST" action="{{ url_for('group_post', group_id=group['id']) }}" enctype="multipart/form-data">
+        <div style="display:flex;gap:12px;">
+          <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=user['avatar']) }}"
+               onerror="this.src='https://ui-avatars.com/api/?name={{ user['username'] }}&background=7c5cfc&color=fff'" alt="">
+          <div style="flex:1;">
+            <textarea class="input" name="content" placeholder="Post something in {{ group['name'] }}..." rows="2"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <label for="gImg" class="btn btn-outline btn-sm" style="cursor:pointer;">🖼️ Photo</label>
+              <input type="file" id="gImg" name="image" accept="image/*" style="display:none;">
+              <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto;">Post</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% for post in posts %}
+    <div class="card">
+      <div class="post-header">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=post['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ post['username'] }}&background=7c5cfc&color=fff'" alt="">
+        <div class="post-meta">
+          <a href="{{ url_for('profile', username=post['username']) }}" class="post-username">{{ post['username'] }}</a>
+          {% if post['role']=='owner' %}<span class="role-tag role-owner">👑 OWNER</span>{% endif %}
+          <div class="post-time">{{ post['created_at'][:16] }}</div>
+        </div>
+      </div>
+      <p class="post-content">{{ post['content'] }}</p>
+      {% if post['image'] %}<img class="post-image" src="{{ url_for('uploaded_file', filename=post['image']) }}" alt="">{% endif %}
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center;padding:40px;color:var(--muted);">
+      No posts yet. {% if is_member %}Be the first to post!{% else %}Join to see posts.{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Members sidebar -->
+  <div style="width:220px;flex-shrink:0;">
+    <div class="card">
+      <h4 style="margin-bottom:14px;font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Members</h4>
+      {% for m in members %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename=m['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ m['username'] }}&background=7c5cfc&color=fff'" alt="">
+        <div style="flex:1;min-width:0;">
+          <a href="{{ url_for('profile', username=m['username']) }}" style="font-weight:600;font-size:.85rem;text-decoration:none;color:var(--text);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m['username'] }}</a>
+          {% if m['role']=='owner' %}<div style="font-size:.7rem;color:#ffd700;">👑 Owner</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

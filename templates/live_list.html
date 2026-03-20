@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Live{% endblock %}
+{% block content %}
+<div class="topbar"><h2>🔴 Live Streams</h2></div>
+<div class="page">
+  <!-- Start your own live -->
+  <div class="card" style="background:linear-gradient(135deg,#fc5c7d18,#7c5cfc18);border-color:#fc5c7d44;">
+    <h3 style="margin-bottom:12px;">Go Live 🎥</h3>
+    <form method="POST" action="{{ url_for('start_live') }}" style="display:flex;gap:10px;">
+      <input class="input" name="title" placeholder="Stream title..." required style="flex:1;">
+      <button type="submit" class="btn btn-primary">🔴 Start Live</button>
+    </form>
+  </div>
+
+  {% if streams %}
+    {% for stream in streams %}
+    <a href="{{ url_for('live_room', room=stream['room']) }}" style="text-decoration:none;">
+      <div class="card" style="display:flex;gap:16px;align-items:center;border-color:#fc5c7d33;transition:border-color .2s;" onmouseover="this.style.borderColor='#fc5c7d'" onmouseout="this.style.borderColor='#fc5c7d33'">
+        <div style="width:80px;height:60px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0;">📺</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;margin-bottom:4px;">{{ stream['title'] }}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img class="avatar avatar-sm" src="{{ url_for('uploaded_file', filename=stream['avatar']) }}"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ stream['username'] }}&background=7c5cfc&color=fff'" alt="">
+            <span style="color:var(--muted);font-size:.85rem;">@{{ stream['username'] }}</span>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="background:#fc5c7d;color:white;font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:4px;">🔴 LIVE</div>
+          <div style="font-size:.78rem;color:var(--muted);">{{ stream['viewers'] }} watching</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:3.5rem;margin-bottom:16px;">📡</div>
+      <h3 style="margin-bottom:8px;">No live streams right now</h3>
+      <p style="color:var(--muted);">Be the first to go live!</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

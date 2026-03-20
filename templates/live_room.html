@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}{{ stream['title'] }} - Live{% endblock %}
+{% block head %}
+<style>
+.live-layout{display:flex;height:calc(100vh - 60px);gap:0;}
+.live-video-area{flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;}
+.live-video-area video{width:100%;height:100%;object-fit:contain;}
+.live-sidebar{width:320px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;}
+.live-header{padding:16px;border-bottom:1px solid var(--border);}
+.live-chat{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;}
+.live-msg{font-size:.86rem;line-height:1.5;}
+.live-msg strong{color:var(--accent);}
+.live-input-area{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.live-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;background:#000a;padding:12px 20px;border-radius:40px;backdrop-filter:blur(10px);}
+.ctrl{width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;font-size:1.2rem;transition:transform .2s;}.ctrl:hover{transform:scale(1.1);}
+.viewer-count{position:absolute;top:16px;right:16px;background:#fc5c7d;color:white;font-size:.78rem;font-weight:700;padding:4px 12px;border-radius:20px;}
+.live-badge{background:#fc5c7d;color:white;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="topbar" style="padding:10px 16px;">
+  <h2>{{ stream['title'] }}</h2>
+  <span class="live-badge" style="margin-left:10px;">🔴 LIVE</span>
+  <span style="color:var(--muted);font-size:.82rem;margin-left:10px;">@{{ stream['username'] }}</span>
+  {% if is_broadcaster %}
+  <form method="POST" action="{{ url_for('end_live', room=stream['room']) }}" style="margin-left:auto;">
+    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('End stream?')">End Stream</button>
+  </form>
+  {% endif %}
+</div>
+<div class="live-layout">
+  <div class="live-video-area">
+    <video id="liveVideo" autoplay playsinline {% if is_broadcaster %}muted{% endif %}></video>
+    <div class="viewer-count" id="viewerCount">👁 0 watching</div>
+    {% if is_broadcaster %}
+    <div class="live-controls">
+      <button class="ctrl" style="background:#2a2a3a;" id="muteBtn" onclick="toggleMute()">🎙️</button>
+      <button class="ctrl" style="background:#fc5c7d;" onclick="confirmEnd()">📵</button>
+      <button class="ctrl" style="background:#2a2a3a;" id="camBtn" onclick="toggleCam()">📹</button>
+    </div>
+    {% endif %}
+  </div>
+  <div class="live-sidebar">
+    <div class="live-header">
+      <div style="font-weight:700;margin-bottom:4px;">Live Chat</div>
+      <div style="font-size:.78rem;color:var(--muted);">Say something nice 👋</div>
+    </div>
+    <div class="live-chat" id="liveChat"></div>
+    <div class="live-input-area">
+      <input class="input" id="liveChatInput" placeholder="Chat..." style="flex:1;">
+      <button class="btn btn-primary btn-sm" onclick="sendLiveChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+const room = "{{ stream['room'] }}";
+const isBroadcaster = {{ 'true' if is_broadcaster else 'false' }};
+let localStream = null, pc = null, muted = false, camOff = false;
+const config = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+
+socket.emit('join_live', {room});
+socket.on('viewer_count', d => { document.getElementById('viewerCount').textContent = `👁 ${d.count} watching`; });
+socket.on('live_message', d => {
+  const chat = document.getElementById('liveChat');
+  const div = document.createElement('div'); div.className = 'live-msg';
+  div.innerHTML = `<strong>${d.username}</strong> ${d.content}`;
+  chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+});
+
+async function initBroadcast(){
+  localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  document.getElementById('liveVideo').srcObject = localStream;
+  socket.emit('join', {room: 'live_'+room});
+}
+async function initViewer(){
+  pc = new RTCPeerConnection(config);
+  pc.ontrack = e => { document.getElementById('liveVideo').srcObject = e.streams[0]; };
+  pc.onicecandidate = e => { if(e.candidate) socket.emit('webrtc_ice',{candidate:e.candidate,room:'live_'+room}); };
+  socket.emit('join', {room: 'live_'+room});
+}
+socket.on('peer_joined', async () => {
+  if(!isBroadcaster) return;
+  pc = new RTCPeerConnection(config);
+  if(localStream) localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  pc.onicecandidate = e => { if(e.candidate) socket.emit('webrtc_ice',{candidate:e.candidate,room:'live_'+room}); };
+  const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+  socket.emit('webrtc_offer',{offer,room:'live_'+room});
+});
+socket.on('webrtc_offer', async offer => {
+  if(isBroadcaster) return;
+  if(!pc) await initViewer();
+  await pc.setRemoteDescription(offer);
+  const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
+  socket.emit('webrtc_answer',{answer,room:'live_'+room});
+});
+socket.on('webrtc_answer', async answer => { if(pc) await pc.setRemoteDescription(answer); });
+socket.on('webrtc_ice', async c => { if(pc&&c) await pc.addIceCandidate(c); });
+
+function sendLiveChat(){
+  const inp = document.getElementById('liveChatInput');
+  if(!inp.value.trim()) return;
+  socket.emit('live_chat',{room,content:inp.value.trim()});
+  inp.value='';
+}
+document.getElementById('liveChatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') sendLiveChat(); });
+
+function toggleMute(){ muted=!muted; localStream?.getAudioTracks().forEach(t=>t.enabled=!muted); document.getElementById('muteBtn').textContent=muted?'🔇':'🎙️'; }
+function toggleCam(){ camOff=!camOff; localStream?.getVideoTracks().forEach(t=>t.enabled=!camOff); document.getElementById('camBtn').textContent=camOff?'🚫':'📹'; }
+function confirmEnd(){ if(confirm('End your stream?')) window.location='/live/'+room+'/end'; }
+
+if(isBroadcaster) initBroadcast(); else initViewer();
+</script>
+{% endblock %}

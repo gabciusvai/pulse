@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Reels{% endblock %}
+{% block head %}
+<style>
+.reels-container{height:calc(100vh - 60px);overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;}
+.reels-container::-webkit-scrollbar{display:none;}
+.reel-item{height:calc(100vh - 60px);scroll-snap-align:start;position:relative;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;}
+.reel-video{width:100%;height:100%;object-fit:contain;max-width:420px;}
+.reel-overlay{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,#000a);}
+.reel-actions{position:absolute;right:16px;bottom:100px;display:flex;flex-direction:column;gap:20px;align-items:center;}
+.reel-action-btn{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:white;}
+.reel-action-btn svg{width:28px;height:28px;filter:drop-shadow(0 1px 3px #000a);}
+.reel-action-btn span{font-size:.75rem;font-weight:600;text-shadow:0 1px 3px #000;}
+.reel-username{font-weight:700;color:white;font-size:.95rem;margin-bottom:4px;text-shadow:0 1px 4px #000;}
+.reel-caption{color:#ffffffcc;font-size:.88rem;line-height:1.5;text-shadow:0 1px 3px #000;}
+.reel-audio{color:#ffffffbb;font-size:.78rem;margin-top:6px;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="topbar">
+  <h2>🎬 Reels</h2>
+  <label for="reelUpload" class="btn btn-primary btn-sm" style="margin-left:auto;cursor:pointer;">+ Upload Reel</label>
+</div>
+
+<!-- Upload form hidden -->
+<div id="uploadPanel" style="display:none;position:fixed;inset:0;background:#000c;z-index:200;align-items:center;justify-content:center;">
+  <div class="card" style="max-width:440px;width:90%;">
+    <h3 style="margin-bottom:16px;">Upload a Reel 🎬</h3>
+    <form method="POST" action="{{ url_for('create_reel') }}" enctype="multipart/form-data">
+      <input type="file" id="reelUpload" name="video" accept="video/*" required style="display:none;" onchange="showUploadPanel()">
+      <div style="margin-bottom:12px;">
+        <label class="btn btn-outline btn-sm" for="reelUpload" style="cursor:pointer;">🎥 Choose Video</label>
+        <span id="reelFileName" style="color:var(--muted);font-size:.85rem;margin-left:10px;"></span>
+      </div>
+      <input class="input" name="caption" placeholder="Caption... use #hashtags" style="margin-bottom:10px;">
+      <input class="input" name="audio_name" placeholder="🎵 Audio name (optional)" style="margin-bottom:14px;">
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">Post Reel</button>
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('uploadPanel').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if reels %}
+<div class="reels-container">
+  {% for reel in reels %}
+  <div class="reel-item" id="reel-{{ reel['id'] }}">
+    <video class="reel-video" loop playsinline preload="metadata"
+           onclick="togglePlay(this)">
+      <source src="{{ url_for('uploaded_file', filename=reel['video']) }}">
+    </video>
+    <div class="reel-overlay">
+      <a href="{{ url_for('profile', username=reel['username']) }}" style="text-decoration:none;">
+        <div class="reel-username">@{{ reel['username'] }}
+          {% if reel['role']=='owner' %}<span class="role-tag role-owner">👑</span>{% endif %}
+        </div>
+      </a>
+      <div class="reel-caption">{{ reel['caption'] }}</div>
+      {% if reel['audio_name'] %}<div class="reel-audio">🎵 {{ reel['audio_name'] }}</div>{% endif %}
+    </div>
+    <div class="reel-actions">
+      <div style="position:relative;">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename=reel['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ reel['username'] }}&background=7c5cfc&color=fff'" alt="">
+        <div class="online-dot" style="background:var(--accent);"></div>
+      </div>
+      <div class="reel-action-btn" onclick="likeReel({{ reel['id'] }}, this)">
+        <svg viewBox="0 0 24 24" fill="{% if reel['user_liked'] %}white{% else %}none{% endif %}" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span class="reel-like-count">{{ reel['like_count'] }}</span>
+      </div>
+      <div class="reel-action-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span>{{ reel['comment_count'] }}</span>
+      </div>
+      <div class="reel-action-btn" onclick="shareReel({{ reel['id'] }}, this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Share</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:80px 20px;">
+  <div style="font-size:4rem;margin-bottom:20px;">🎬</div>
+  <h2 style="margin-bottom:10px;">No Reels yet</h2>
+  <p style="color:var(--muted);margin-bottom:24px;">Be the first to post a reel!</p>
+  <label for="reelUpload" class="btn btn-primary" style="cursor:pointer;">Upload First Reel</label>
+  <input type="file" id="reelUpload" accept="video/*" style="display:none;" onchange="showUploadPanel()">
+</div>
+{% endif %}
+
+<script>
+document.querySelector('label[for="reelUpload"]')?.addEventListener('click',()=>{
+  document.getElementById('uploadPanel').style.display='flex';
+});
+function showUploadPanel(){
+  const f=document.getElementById('reelUpload').files[0];
+  if(f) document.getElementById('reelFileName').textContent=f.name;
+}
+function togglePlay(video){
+  video.paused?video.play():video.pause();
+}
+// Auto-play on scroll
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    const v=e.target.querySelector('video');
+    if(v){ e.isIntersecting?v.play():v.pause(); }
+  });
+},{threshold:.7});
+document.querySelectorAll('.reel-item').forEach(r=>observer.observe(r));
+
+async function likeReel(reelId,btn){
+  const res=await fetch(`/reel/${reelId}/like`,{method:'POST'});
+  const d=await res.json();
+  btn.querySelector('svg').setAttribute('fill',d.liked?'white':'none');
+  btn.querySelector('.reel-like-count').textContent=d.count;
+}
+function shareReel(id,btn){
+  navigator.clipboard.writeText(window.location.origin+'/reels#reel-'+id);
+  const s=btn.querySelector('span'); s.textContent='✅'; setTimeout(()=>s.textContent='Share',2000);
+}
+</script>
+{% endblock %}

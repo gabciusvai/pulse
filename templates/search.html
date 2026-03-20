@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set current_user_avatar = user['avatar'] %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<div class="topbar"><h2>🔍 Discover</h2></div>
+<div class="page">
+  <div class="card">
+    <form method="GET" class="search-form" style="display:flex;gap:10px;">
+      <input class="input" name="q" value="{{ q }}" placeholder="Search by username..." autofocus>
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+  </div>
+
+  {% if users %}
+    {% for u in users %}
+    <div class="card" style="display:flex;align-items:center;gap:14px;">
+      <a href="{{ url_for('profile', username=u['username']) }}">
+        <img class="avatar avatar-md" src="{{ url_for('uploaded_file', filename= u['avatar']) }}"
+             onerror="this.src='https://ui-avatars.com/api/?name={{ u['username'] }}&background=7c5cfc&color=fff'" alt="{{ u['username'] }}">
+      </a>
+      <div style="flex:1;">
+        <a href="{{ url_for('profile', username=u['username']) }}" style="font-weight:700;text-decoration:none;color:var(--text);">{{ u['username'] }}</a>
+        {% if u['bio'] %}<p style="color:var(--muted);font-size:.85rem;margin-top:2px;">{{ u['bio'][:80] }}</p>{% endif %}
+      </div>
+      {% if u['fstatus'] == 'accepted' %}
+        <a href="{{ url_for('chat', friend_id=u['id']) }}" class="btn btn-outline btn-sm">💬 Message</a>
+      {% elif u['fstatus'] == 'pending' and u['f_requester'] == session.user_id %}
+        <button class="btn btn-outline btn-sm" disabled>Pending ⏳</button>
+      {% elif u['fstatus'] == 'pending' and u['f_requester'] != session.user_id %}
+        <form method="POST" action="{{ url_for('friend_accept', user_id=u['id']) }}">
+          <button type="submit" class="btn btn-primary btn-sm">Accept ✅</button>
+        </form>
+      {% else %}
+        <form method="POST" action="{{ url_for('friend_request', user_id=u['id']) }}">
+          <button type="submit" class="btn btn-primary btn-sm">➕ Add</button>
+        </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% elif q %}
+    <div class="card" style="text-align:center;padding:40px;color:var(--muted);">
+      No users found for "<strong>{{ q }}</strong>"
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

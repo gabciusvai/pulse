@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call · Pulse</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+:root { --bg:#0a0a0f; --surface:#13131a; --accent:#7c5cfc; --accent2:#fc5c7d; --text:#f0f0ff; }
+* { margin:0;padding:0;box-sizing:border-box; }
+body { background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden; }
+.call-screen { width:100%;height:100vh;position:relative;background:#111; }
+video { width:100%;height:100%;object-fit:cover; }
+#remoteVideo { position:absolute;inset:0; }
+#localVideo { position:absolute;bottom:20px;right:20px;width:180px;height:130px;border-radius:12px;border:2px solid var(--accent);z-index:10;object-fit:cover; }
+.controls {
+  position:absolute;
+  bottom:32px;left:50%;transform:translateX(-50%);
+  display:flex;gap:16px;
+  z-index:20;
+  background:#000000aa;
+  padding:16px 24px;
+  border-radius:40px;
+  backdrop-filter:blur(20px);
+}
+.ctrl-btn { width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;font-size:1.3rem;transition:transform .2s; }
+.ctrl-btn:hover { transform:scale(1.1); }
+.ctrl-end { background:var(--accent2); }
+.ctrl-toggle { background:#2a2a3a; }
+.status-overlay {
+  position:absolute;
+  inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#0a0a0f,#1c1c28);
+  z-index:5;
+}
+.status-overlay.hidden { display:none; }
+.pulse-ring { width:120px;height:120px;border-radius:50%;border:3px solid var(--accent);animation:ring 1.5s ease-out infinite;margin:0 auto 24px; }
+@keyframes ring { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.8);opacity:0} }
+</style>
+</head>
+<body>
+<div class="call-screen">
+  <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline muted></video>
+
+  <div class="status-overlay" id="statusOverlay">
+    <div class="pulse-ring"></div>
+    <h2 style="font-size:1.5rem;margin-bottom:8px;">Connecting...</h2>
+    <p style="color:#7878a0;">Setting up your call</p>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn ctrl-toggle" id="muteBtn" onclick="toggleMute()" title="Mute">🎙️</button>
+    <button class="ctrl-btn ctrl-end" onclick="endCall()" title="End call">📵</button>
+    <button class="ctrl-btn ctrl-toggle" id="camBtn" onclick="toggleCam()" title="Camera">📹</button>
+  </div>
+</div>
+
+<script>
+const room = window.location.pathname.split('/').pop();
+const socket = io();
+let localStream = null;
+let pc = null;
+let muted = false, camOff = false;
+
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+async function init() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('localVideo').srcObject = localStream;
+  } catch(e) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch(e2) {
+      console.warn('No media access');
+    }
+  }
+  socket.emit('join', { room });
+}
+
+socket.on('webrtc_offer', async (offer) => {
+  pc = createPC();
+  await pc.setRemoteDescription(offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  socket.emit('webrtc_answer', { answer, room });
+  document.getElementById('statusOverlay').classList.add('hidden');
+});
+
+socket.on('webrtc_answer', async (answer) => {
+  if (pc) await pc.setRemoteDescription(answer);
+  document.getElementById('statusOverlay').classList.add('hidden');
+});
+
+socket.on('webrtc_ice', async (candidate) => {
+  if (pc && candidate) await pc.addIceCandidate(candidate);
+});
+
+socket.on('peer_joined', async () => {
+  pc = createPC();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('webrtc_offer', { offer, room });
+});
+
+function createPC() {
+  const peer = new RTCPeerConnection(config);
+  if (localStream) localStream.getTracks().forEach(t => peer.addTrack(t, localStream));
+  peer.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
+  peer.onicecandidate = e => { if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, room }); };
+  return peer;
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  document.getElementById('muteBtn').textContent = muted ? '🔇' : '🎙️';
+}
+function toggleCam() {
+  if (!localStream) return;
+  camOff = !camOff;
+  localStream.getVideoTracks().forEach(t => t.enabled = !camOff);
+  document.getElementById('camBtn').textContent = camOff ? '📷' : '📹';
+}
+function endCall() {
+  if (pc) pc.close();
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  window.close();
+}
+
+init();
+</script>
+</body>
+</html>
