@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'pulse-super-secret-2024')
 app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 OWNER_USERNAME  = 'gabcius'
 ALLOWED_IMG     = {'png','jpg','jpeg','gif','webp'}
